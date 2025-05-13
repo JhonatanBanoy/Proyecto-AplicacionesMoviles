@@ -55,31 +55,57 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
   }
 
   void _addItem() {
+    // Para las salas, asegurarse de que el formato de ubicación es correcto
+    String? location = _locationController.text.isEmpty ? null : _locationController.text;
+    
+    // Si es una sala, asegurar que tiene formato Torre-Numero (ej: C-101)
+    if (_selectedType == RecordType.room && location != null) {
+      // Verificar si ya tiene el formato correcto (Torre-Numero)
+      if (!location.contains('-')) {
+        // Asumir que es solo un número y agregar torre por defecto
+        location = 'C-$location';
+      }
+    }
+    
     final newItem = InventoryItem(
       id: DateTime.now().toString(),
       name: _nameController.text,
       type: _selectedType,
-      location: _locationController.text.isEmpty ? null : _locationController.text,
+      location: location,
       description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
       status: _selectedStatus,
       lastUpdated: DateTime.now(),
     );
 
+    print('Añadiendo nuevo item al inventario: ${newItem.name}, tipo: ${newItem.type}, ubicación: ${newItem.location}');
     widget.onItemAdded(newItem);
     _resetForm();
     Navigator.pop(context);
   }
 
   void _updateItem() {
+    // Para las salas, asegurarse de que el formato de ubicación es correcto
+    String? location = _locationController.text.isEmpty ? null : _locationController.text;
+    
+    // Si es una sala, asegurar que tiene formato Torre-Numero (ej: C-101)
+    if (_selectedType == RecordType.room && location != null) {
+      // Verificar si ya tiene el formato correcto (Torre-Numero)
+      if (!location.contains('-')) {
+        // Asumir que es solo un número y agregar torre por defecto
+        location = 'C-$location';
+      }
+    }
+    
     final updatedItem = _editingItem!.copyWith(
       name: _nameController.text,
       type: _selectedType,
-      location: _locationController.text.isEmpty ? null : _locationController.text,
+      location: location,
       description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
       status: _selectedStatus,
       lastUpdated: DateTime.now(),
     );
 
+    print('Actualizando item del inventario: ${updatedItem.name}, tipo: ${updatedItem.type}, ubicación: ${updatedItem.location}');
     widget.onItemUpdated(updatedItem);
     _resetForm();
     Navigator.pop(context);
@@ -102,7 +128,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          item == null ? 'Add Inventory Item' : 'Edit Inventory Item',
+          item == null ? 'Agregar Item al Inventario' : 'Editar Item del Inventario',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         content: SingleChildScrollView(
@@ -114,18 +140,22 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
                 DropdownButtonFormField<RecordType>(
                   value: _selectedType,
                   decoration: InputDecoration(
-                    labelText: 'Type',
+                    labelText: 'Tipo',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                     prefixIcon: const Icon(Icons.category),
                   ),
-                  items: RecordType.values.map((type) {
-                    return DropdownMenuItem(
-                      value: type,
-                      child: Text(type.toString().split('.').last),
-                    );
-                  }).toList(),
+                  items: [
+                    DropdownMenuItem(
+                      value: RecordType.equipment,
+                      child: Text('Equipamiento'),
+                    ),
+                    DropdownMenuItem(
+                      value: RecordType.room,
+                      child: Text('Salón'),
+                    ),
+                  ],
                   onChanged: (value) {
                     if (value != null) {
                       setState(() {
@@ -138,7 +168,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(
-                    labelText: 'Name',
+                    labelText: 'Nombre',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -146,7 +176,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter a name';
+                      return 'Por favor ingrese un nombre';
                     }
                     return null;
                   },
@@ -155,7 +185,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
                 TextFormField(
                   controller: _locationController,
                   decoration: InputDecoration(
-                    labelText: _selectedType == RecordType.room ? 'Room Number' : 'Storage Location',
+                    labelText: _selectedType == RecordType.room ? 'Número de Salón' : 'Ubicación de Almacenamiento',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -166,7 +196,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
                 TextFormField(
                   controller: _descriptionController,
                   decoration: InputDecoration(
-                    labelText: 'Description',
+                    labelText: 'Descripción',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -178,18 +208,26 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
                 DropdownButtonFormField<ItemStatus>(
                   value: _selectedStatus,
                   decoration: InputDecoration(
-                    labelText: 'Status',
+                    labelText: 'Estado',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                     prefixIcon: const Icon(Icons.sync),
                   ),
-                  items: ItemStatus.values.map((status) {
-                    return DropdownMenuItem(
-                      value: status,
-                      child: Text(status.toString().split('.').last),
-                    );
-                  }).toList(),
+                  items: [
+                    DropdownMenuItem(
+                      value: ItemStatus.available,
+                      child: Text('Disponible'),
+                    ),
+                    DropdownMenuItem(
+                      value: ItemStatus.inUse,
+                      child: Text('En Uso'),
+                    ),
+                    DropdownMenuItem(
+                      value: ItemStatus.maintenance,
+                      child: Text('En Mantenimiento'),
+                    ),
+                  ],
                   onChanged: (value) {
                     if (value != null) {
                       setState(() {
@@ -205,7 +243,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancelar'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -217,7 +255,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
                 }
               }
             },
-            child: Text(item == null ? 'Add Item' : 'Update Item'),
+            child: Text(item == null ? 'Agregar' : 'Actualizar'),
           ),
         ],
       ),
@@ -232,7 +270,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Inventory Dashboard',
+          'Inventario',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -243,11 +281,11 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
           unselectedLabelColor: Colors.white,
           tabs: [
             Tab(
-              text: 'Equipment',
+              text: 'Equipamiento',
               icon: Icon(Icons.videocam, color: Color(0xFFFFD700)),
             ),
             Tab(
-              text: 'Rooms',
+              text: 'Salones',
               icon: Icon(Icons.meeting_room, color: Color(0xFFFFD700)),
             ),
           ],
@@ -266,7 +304,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showItemDialog(),
         icon: const Icon(Icons.add),
-        label: const Text('Add Item'),
+        label: const Text('Agregar Item'),
       ),
     );
   }
@@ -316,7 +354,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
             title: Row(
               children: [
                 Text(
-                  item.name,
+                  item.name.startsWith('Sala') ? item.name.replaceFirst('Sala', 'Salón') : item.name,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -368,7 +406,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'Updated: ${DateFormat('MMM dd, yyyy HH:mm').format(item.lastUpdated)}',
+                      'Actualizado: ${DateFormat('dd/MM/yyyy HH:mm').format(item.lastUpdated)}',
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 12,
@@ -405,19 +443,23 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
   Widget _buildStatusBadge(ItemStatus status) {
     Color backgroundColor;
     Color textColor;
+    String statusText;
     
     switch (status) {
       case ItemStatus.available:
         backgroundColor = Colors.green.withOpacity(0.1);
         textColor = Colors.green;
+        statusText = 'Disponible';
         break;
       case ItemStatus.inUse:
         backgroundColor = Colors.orange.withOpacity(0.1);
         textColor = Colors.orange;
+        statusText = 'En Uso';
         break;
       case ItemStatus.maintenance:
         backgroundColor = Colors.red.withOpacity(0.1);
         textColor = Colors.red;
+        statusText = 'En Mantenimiento';
         break;
     }
 
@@ -431,7 +473,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> with SingleTick
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        status.toString().split('.').last,
+        statusText,
         style: TextStyle(
           color: textColor,
           fontSize: 12,

@@ -50,17 +50,77 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Depurar el inventario al iniciar la pantalla
+    _debugInventory();
+  }
+
+  @override
+  void didUpdateWidget(RecordManagerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    // Verificar si el inventario ha cambiado
+    if (widget.inventoryItems.length != oldWidget.inventoryItems.length) {
+      print('El inventario ha cambiado. Actualizando RecordManagerScreen...');
+      _debugInventory();
+    }
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     super.dispose();
   }
 
+  // Método para depurar el inventario disponible
+  void _debugInventory() {
+    print('=== DEPURACIÓN DE INVENTARIO ===');
+    print('Total de elementos en inventario: ${widget.inventoryItems.length}');
+    
+    final rooms = widget.inventoryItems.where((item) => item.type == RecordType.room).toList();
+    print('Total de salones: ${rooms.length}');
+    
+    for (var room in rooms) {
+      print('Salón: ${room.name}, Ubicación: ${room.location}, ID: ${room.id}');
+    }
+    
+    print('=== FIN DEPURACIÓN ===');
+  }
+
   List<String> getRoomsForTower(String tower) {
-    // Obtener habitaciones disponibles del inventario
-    final availableRooms = widget.inventoryItems
-        .where((item) => item.type == RecordType.room && item.location != null)
-        .map((item) => item.location!)
-        .toList();
+    print('Obteniendo salones para torre: $tower');
+    
+    // Filtrar salones disponibles del inventario para la torre seleccionada
+    final List<String> availableRooms = [];
+    
+    // Depurar el inventario actual
+    print('Inventario actual: ${widget.inventoryItems.length} elementos');
+    for (var item in widget.inventoryItems) {
+      print('Item: ${item.name}, Tipo: ${item.type}, Ubicación: ${item.location}, ID: ${item.id}');
+    }
+    
+    // Filtrar solo los salones que comienzan con la torre seleccionada
+    for (var item in widget.inventoryItems) {
+      if (item.type == RecordType.room && 
+          item.location != null) {
+        // Verificar si el salón pertenece a la torre seleccionada
+        if (item.location!.startsWith(tower)) {
+          print('✓ Agregando salón: ${item.location} para torre $tower (ID: ${item.id})');
+          availableRooms.add(item.location!);
+        } else {
+          print('✗ Salón no coincide con torre $tower: ${item.location}');
+        }
+      }
+    }
+    
+    print('Salones disponibles para torre $tower: $availableRooms');
+    
+    // Si no hay salones disponibles en el inventario, usar valores por defecto
+    if (availableRooms.isEmpty) {
+      print('No se encontraron salones para la torre $tower, usando valores por defecto');
+      return ['$tower-101', '$tower-102', '$tower-103'];
+    }
     
     return availableRooms;
   }
@@ -108,7 +168,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
     // Check for time conflicts
     if (_hasTimeConflict(newRecord)) {
       setState(() {
-        _timeConflictError = 'Time conflict: This room is already booked during this time period.';
+        _timeConflictError = 'Conflicto de horario: Este salón ya está reservado durante este periodo de tiempo.';
       });
       return;
     }
@@ -136,7 +196,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
     // Check for time conflicts
     if (_hasTimeConflict(updatedRecord)) {
       setState(() {
-        _timeConflictError = 'Time conflict: This room is already booked during this time period.';
+        _timeConflictError = 'Conflicto de horario: Este salón ya está reservado durante este periodo de tiempo.';
       });
       return;
     }
@@ -200,8 +260,12 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
     _editingRecord = record;
     _timeConflictError = null;
     
+    // Actualizar y depurar el inventario actual al mostrar el diálogo
+    _debugInventory();
+    
     // Verificar si hay elementos de inventario disponibles
     final hasRooms = widget.inventoryItems.any((item) => item.type == RecordType.room);
+    print('¿Hay salones disponibles? ${hasRooms ? "Sí" : "No"}');
     
     if (!hasRooms && record == null) {
       // Mostrar mensaje si no hay habitaciones disponibles
@@ -209,7 +273,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('No hay inventario disponible'),
-          content: const Text('Debe agregar habitaciones o equipos al inventario antes de crear registros.'),
+          content: const Text('Debe agregar salones o equipos al inventario antes de crear registros.'),
           actions: [
             TextButton(
               onPressed: () {
@@ -242,7 +306,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: Text(
-            record == null ? 'Add New Record' : 'Edit Record',
+            record == null ? 'Añadir Nuevo Registro' : 'Editar Registro',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           content: SingleChildScrollView(
@@ -265,7 +329,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              _timeConflictError!,
+                              'Conflicto de horario: Este salón ya está reservado durante este periodo de tiempo.',
                               style: TextStyle(color: Colors.red.shade700),
                             ),
                           ),
@@ -277,18 +341,22 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                   DropdownButtonFormField<RecordType>(
                     value: _selectedType,
                     decoration: InputDecoration(
-                      labelText: 'Type',
+                      labelText: 'Tipo',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                       prefixIcon: const Icon(Icons.category),
                     ),
-                    items: RecordType.values.map((type) {
-                      return DropdownMenuItem(
-                        value: type,
-                        child: Text(type.toString().split('.').last),
-                      );
-                    }).toList(),
+                    items: [
+                      DropdownMenuItem(
+                        value: RecordType.room,
+                        child: Text('Salón'),
+                      ),
+                      DropdownMenuItem(
+                        value: RecordType.equipment,
+                        child: Text('Equipamiento'),
+                      ),
+                    ],
                     onChanged: (value) {
                       if (value != null) {
                         setState(() {
@@ -305,7 +373,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                   TextFormField(
                     controller: _titleController,
                     decoration: InputDecoration(
-                      labelText: 'Title',
+                      labelText: 'Título',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -313,7 +381,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter a title';
+                        return 'Por favor ingrese un título';
                       }
                       return null;
                     },
@@ -322,7 +390,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                   DropdownButtonFormField<String>(
                     value: _selectedTeacher,
                     decoration: InputDecoration(
-                      labelText: 'Teacher',
+                      labelText: 'Profesor',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -347,7 +415,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                     DropdownButtonFormField<String>(
                       value: _selectedTower,
                       decoration: InputDecoration(
-                        labelText: 'Tower',
+                        labelText: 'Torre',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
@@ -356,7 +424,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                       items: ['C', 'B'].map((tower) {
                         return DropdownMenuItem(
                           value: tower,
-                          child: Text('Tower $tower'),
+                          child: Text('Torre $tower'),
                         );
                       }).toList(),
                       onChanged: (value) {
@@ -369,7 +437,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                       },
                       validator: (value) {
                         if (_selectedType == RecordType.room && (value == null || value.isEmpty)) {
-                          return 'Please select a tower';
+                          return 'Por favor seleccione una torre';
                         }
                         return null;
                       },
@@ -379,7 +447,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                       DropdownButtonFormField<String>(
                         value: _selectedRoom,
                         decoration: InputDecoration(
-                          labelText: 'Room',
+                          labelText: 'Salón',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -431,7 +499,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                         },
                         validator: (value) {
                           if (_selectedType == RecordType.room && (value == null || value.isEmpty)) {
-                            return 'Please select a room';
+                            return 'Por favor seleccione un salón';
                           }
                           return null;
                         },
@@ -443,7 +511,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                     children: [
                       Expanded(
                         child: ListTile(
-                          title: const Text('Start Time'),
+                          title: const Text('Hora de Inicio'),
                           subtitle: Text(_startTime.format(context)),
                           trailing: const Icon(Icons.access_time),
                           onTap: () => _selectTime(context, true).then((_) {
@@ -455,7 +523,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                       ),
                       Expanded(
                         child: ListTile(
-                          title: const Text('End Time'),
+                          title: const Text('Hora de Fin'),
                           subtitle: Text(_endTime.format(context)),
                           trailing: const Icon(Icons.access_time),
                           onTap: () => _selectTime(context, false).then((_) {
@@ -481,7 +549,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                         const SizedBox(width: 10),
                         const Expanded(
                           child: Text(
-                            'If end time is earlier than start time, it will be considered as the next day.',
+                            'Si la hora de fin es anterior a la hora de inicio, se considerará como el día siguiente.',
                             style: TextStyle(color: Colors.blue),
                           ),
                         ),
@@ -495,7 +563,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: const Text('Cancelar'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -515,7 +583,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                   // Check for time conflict within the dialog
                   if (_hasTimeConflict(tempRecord)) {
                     setState(() {
-                      _timeConflictError = 'Time conflict: This room is already booked during this time period.';
+                      _timeConflictError = 'Conflicto de horario: Este salón ya está reservado durante este periodo de tiempo.';
                     });
                     return;
                   }
@@ -527,7 +595,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                   }
                 }
               },
-              child: Text(record == null ? 'Add Record' : 'Update Record'),
+              child: Text(record == null ? 'Añadir Registro' : 'Actualizar Registro'),
             ),
           ],
         ),
@@ -540,7 +608,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Record Manager',
+          'Gestor de Registros',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -643,7 +711,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            record.type.toString().split('.').last,
+                            record.type == RecordType.room ? 'Salón' : 'Equipamiento',
                             style: TextStyle(
                               color: record.type == RecordType.room
                                   ? Colors.blue
@@ -739,7 +807,7 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'Created: ${DateFormat('MMM dd, yyyy').format(record.createdAt)}',
+                              'Creado: ${DateFormat('dd/MM/yyyy').format(record.createdAt)}',
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 12,
@@ -771,9 +839,14 @@ class _RecordManagerScreenState extends State<RecordManagerScreen> {
               },
             ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showRecordDialog(),
+        onPressed: () {
+          // Depurar el inventario antes de mostrar el diálogo
+          print('Presionado botón "Añadir Registro" - Verificando inventario actual');
+          _debugInventory();
+          _showRecordDialog();
+        },
         icon: const Icon(Icons.add),
-        label: const Text('Add Record'),
+        label: const Text('Añadir Registro'),
       ),
     );
   }

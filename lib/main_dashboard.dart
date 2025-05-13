@@ -142,12 +142,93 @@ class _HomeDashboardState extends State<HomeDashboard> {
   @override
   void initState() {
     super.initState();
-    // No cargar datos de muestra
+    // Cargar datos de muestra para pruebas
+    _loadSampleData();
+  }
+  
+  // Método para refrescar el estado - asegura que la UI se actualice cuando navega entre secciones
+  void _refreshState() {
+    setState(() {
+      // Forzar la reconstrucción de los widgets
+      print('Actualizando estado de la aplicación');
+      print('Inventario actual: ${_inventoryItems.length} elementos');
+      print('Registros actuales: ${_records.length} elementos');
+    });
+  }
+  
+  void _loadSampleData() {
+    // Agregar algunos salones de muestra
+    _inventoryItems.addAll([
+      // Salones de la torre C
+      InventoryItem(
+        id: '1',
+        name: 'Salón C-101',
+        type: RecordType.room,
+        location: 'C-101',
+        description: 'Salón de clases en torre C',
+        status: ItemStatus.available,
+        lastUpdated: DateTime.now(),
+      ),
+      InventoryItem(
+        id: '2',
+        name: 'Salón C-102',
+        type: RecordType.room,
+        location: 'C-102',
+        description: 'Salón de clases en torre C',
+        status: ItemStatus.available,
+        lastUpdated: DateTime.now(),
+      ),
+      // Salones de la torre B
+      InventoryItem(
+        id: '3',
+        name: 'Salón B-201',
+        type: RecordType.room,
+        location: 'B-201',
+        description: 'Salón de clases en torre B',
+        status: ItemStatus.available,
+        lastUpdated: DateTime.now(),
+      ),
+      InventoryItem(
+        id: '4',
+        name: 'Salón B-202',
+        type: RecordType.room,
+        location: 'B-202',
+        description: 'Salón de clases en torre B',
+        status: ItemStatus.available,
+        lastUpdated: DateTime.now(),
+      ),
+      // Equipamiento
+      InventoryItem(
+        id: '5',
+        name: 'Proyector HDMI',
+        type: RecordType.equipment,
+        location: 'Bodega Central',
+        description: 'Proyector con entrada HDMI',
+        status: ItemStatus.available,
+        lastUpdated: DateTime.now(),
+      ),
+      InventoryItem(
+        id: '6',
+        name: 'Laptop Dell',
+        type: RecordType.equipment,
+        location: 'Bodega Central',
+        description: 'Laptop Dell para préstamo',
+        status: ItemStatus.available,
+        lastUpdated: DateTime.now(),
+      ),
+    ]);
+    
+    print('Datos de muestra cargados: ${_inventoryItems.length} elementos en el inventario');
   }
   
   void _onInventoryItemAdded(InventoryItem item) {
     setState(() {
       _inventoryItems.add(item);
+      print('Nuevo elemento añadido al inventario: ${item.name} (ID: ${item.id})');
+      print('Total elementos en inventario: ${_inventoryItems.length}');
+      
+      // Refresh para asegurar que la UI se actualice
+      _refreshState();
     });
   }
   
@@ -156,13 +237,23 @@ class _HomeDashboardState extends State<HomeDashboard> {
       final index = _inventoryItems.indexWhere((item) => item.id == updatedItem.id);
       if (index != -1) {
         _inventoryItems[index] = updatedItem;
+        print('Elemento de inventario actualizado: ${updatedItem.name} (ID: ${updatedItem.id})');
       }
+      
+      // Refresh para asegurar que la UI se actualice
+      _refreshState();
     });
   }
   
   void _onInventoryItemDeleted(String id) {
     setState(() {
+      final item = _inventoryItems.firstWhere((item) => item.id == id, orElse: () => _inventoryItems.first);
       _inventoryItems.removeWhere((item) => item.id == id);
+      print('Elemento de inventario eliminado: ${item.name} (ID: $id)');
+      print('Total elementos en inventario restantes: ${_inventoryItems.length}');
+      
+      // Refresh para asegurar que la UI se actualice
+      _refreshState();
     });
   }
 
@@ -239,16 +330,20 @@ class _HomeDashboardState extends State<HomeDashboard> {
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
+            print('Cambiando a pestaña: ${index == 0 ? "Registros" : "Inventario"}');
+            
+            // Al cambiar entre pantallas, asegurarnos de que los datos estén actualizados
+            _refreshState();
           });
         },
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
-            label: 'Records',
+            label: 'Registros',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.inventory_2),
-            label: 'Inventory',
+            label: 'Inventario',
           ),
         ],
       ),
@@ -256,6 +351,14 @@ class _HomeDashboardState extends State<HomeDashboard> {
   }
   
   void _updateInventoryItemStatus(RecordType type, String identifier, ItemStatus status) {
+    print('Intentando actualizar estado de: $type, $identifier a $status');
+    print('Inventario actual: ${_inventoryItems.length} elementos');
+    
+    // Depuración: imprimir todos los elementos de inventario
+    for (var item in _inventoryItems) {
+      print('Item: ${item.name}, Tipo: ${item.type}, Ubicación: ${item.location}, Estado actual: ${item.status}');
+    }
+    
     final index = _inventoryItems.indexWhere(
       (item) => item.type == type && item.location == identifier
     );
@@ -266,7 +369,10 @@ class _HomeDashboardState extends State<HomeDashboard> {
           status: status,
           lastUpdated: DateTime.now(),
         );
+        print('Estado actualizado para ${_inventoryItems[index].name} a ${_inventoryItems[index].status}');
       });
+    } else {
+      print('No se encontró el item $identifier en el inventario para actualizar su estado');
     }
   }
 } 
