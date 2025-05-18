@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/inventory_item.dart';
 import '../screens/inventory_dashboard.dart';
-import 'record_manager_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -44,21 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          // Records Manager
-          RecordManagerScreen(inventoryItems: _inventoryItems),
-          
-          // Inventory Dashboard
-          InventoryDashboard(
-            inventoryItems: _inventoryItems,
-            onItemAdded: _onItemAdded,
-            onItemUpdated: _onItemUpdated,
-            onItemDeleted: _onItemDeleted,
-          ),
-        ],
-      ),
+      body: InventoryDashboard(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {

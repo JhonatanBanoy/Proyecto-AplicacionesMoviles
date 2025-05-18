@@ -11,6 +11,46 @@ enum ItemStatus {
   maintenance,
 }
 
+class Classroom {
+  final int id;
+  final int floor;
+  final String hasEquipment;
+  final String roomNumber;
+  final String roomType;
+  final String tower;
+
+  Classroom({
+    required this.id,
+    required this.floor,
+    required this.hasEquipment,
+    required this.roomNumber,
+    required this.roomType,
+    required this.tower,
+  });
+
+  factory Classroom.fromJson(Map<String, dynamic> json) {
+    return Classroom(
+      id: json['id'],
+      floor: json['floor'],
+      hasEquipment: json['has_equipment'],
+      roomNumber: json['room_number'],
+      roomType: json['room_type'],
+      tower: json['tower'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'floor': floor,
+      'has_equipment': hasEquipment,
+      'room_number': roomNumber,
+      'room_type': roomType,
+      'tower': tower,
+    };
+  }
+}
+
 class InventoryItem {
   String id;
   String name;

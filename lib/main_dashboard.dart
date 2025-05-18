@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'screens/inventory_dashboard.dart';
-import 'screens/record_manager_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -260,93 +259,7 @@ class _HomeDashboardState extends State<HomeDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          // Records Manager Screen
-          RecordManagerScreen(
-            records: _records,
-            inventoryItems: _inventoryItems,
-            onRecordAdded: (record) {
-              setState(() {
-                _records.add(record);
-                
-                // Update inventory item status
-                if (record.type == RecordType.room && record.room != null) {
-                  _updateInventoryItemStatus(RecordType.room, record.room!, ItemStatus.inUse);
-                }
-              });
-            },
-            onRecordUpdated: (record) {
-              setState(() {
-                final index = _records.indexWhere((r) => r.id == record.id);
-                if (index != -1) {
-                  _records[index] = record;
-                }
-              });
-            },
-            onRecordDeleted: (id) {
-              setState(() {
-                final record = _records.firstWhere((r) => r.id == id);
-                _records.removeWhere((r) => r.id == id);
-                
-                // Update inventory item status if needed
-                if (record.type == RecordType.room && record.room != null) {
-                  _updateInventoryItemStatus(RecordType.room, record.room!, ItemStatus.available);
-                }
-              });
-            },
-            onRecordStatusChanged: (id, isDelivered) {
-              setState(() {
-                final index = _records.indexWhere((r) => r.id == id);
-                if (index != -1) {
-                  _records[index].isDelivered = isDelivered;
-                  
-                  // Update inventory item status
-                  final record = _records[index];
-                  if (record.type == RecordType.room && record.room != null) {
-                    _updateInventoryItemStatus(
-                      RecordType.room, 
-                      record.room!, 
-                      isDelivered ? ItemStatus.available : ItemStatus.inUse
-                    );
-                  }
-                }
-              });
-            },
-          ),
-          
-          // Inventory Dashboard
-          InventoryDashboard(
-            inventoryItems: _inventoryItems,
-            onItemAdded: _onInventoryItemAdded,
-            onItemUpdated: _onInventoryItemUpdated,
-            onItemDeleted: _onInventoryItemDeleted,
-          ),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-            print('Cambiando a pestaña: ${index == 0 ? "Registros" : "Inventario"}');
-            
-            // Al cambiar entre pantallas, asegurarnos de que los datos estén actualizados
-            _refreshState();
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Registros',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2),
-            label: 'Inventario',
-          ),
-        ],
-      ),
+      body: InventoryDashboard(),
     );
   }
   

@@ -1,484 +1,333 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import '../main_dashboard.dart';
+import '../models/inventory_item.dart';
+import '../services/resource_service.dart';
+import '../theme.dart';
 
 class InventoryDashboard extends StatefulWidget {
-  final List<InventoryItem> inventoryItems;
-  final Function(InventoryItem) onItemAdded;
-  final Function(InventoryItem) onItemUpdated;
-  final Function(String) onItemDeleted;
-
-  const InventoryDashboard({
-    super.key,
-    required this.inventoryItems,
-    required this.onItemAdded,
-    required this.onItemUpdated,
-    required this.onItemDeleted,
-  });
+  const InventoryDashboard({super.key});
 
   @override
   State<InventoryDashboard> createState() => _InventoryDashboardState();
 }
 
-class _InventoryDashboardState extends State<InventoryDashboard> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _InventoryDashboardState extends State<InventoryDashboard> {
+  final ClassroomService _service = ClassroomService();
+  List<Classroom> _classrooms = [];
+  List<Classroom> _filteredClassrooms = [];
+
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _locationController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  RecordType _selectedType = RecordType.equipment;
-  ItemStatus _selectedStatus = ItemStatus.available;
-  InventoryItem? _editingItem;
+  final _floorController = TextEditingController();
+  final _hasEquipmentController = TextEditingController();
+  final _roomNumberController = TextEditingController();
+  final _roomTypeController = TextEditingController();
+  final _towerController = TextEditingController();
+  final _searchController = TextEditingController();
+  Classroom? _editingClassroom;
+
+  Color get gold => const Color(0xFFFFD700);
+  Color get blue => AppColors.azulOscuro;
+  Color get lightGrey => Colors.grey.shade100;
+  Color get darkGrey => Colors.grey.shade700;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _loadClassrooms();
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _nameController.dispose();
-    _locationController.dispose();
-    _descriptionController.dispose();
+    _searchController.dispose();
+    _floorController.dispose();
+    _hasEquipmentController.dispose();
+    _roomNumberController.dispose();
+    _roomTypeController.dispose();
+    _towerController.dispose();
     super.dispose();
   }
 
+  Future<void> _loadClassrooms() async {
+    final classrooms = await _service.getClassrooms();
+    setState(() {
+      _classrooms = classrooms;
+      _filteredClassrooms = classrooms;
+    });
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredClassrooms = _classrooms.where((c) =>
+        c.roomNumber.toLowerCase().contains(query) ||
+        c.roomType.toLowerCase().contains(query) ||
+        c.tower.toLowerCase().contains(query) ||
+        c.hasEquipment.toLowerCase().contains(query)
+      ).toList();
+    });
+  }
+
   void _resetForm() {
-    _nameController.clear();
-    _locationController.clear();
-    _descriptionController.clear();
-    _selectedType = RecordType.equipment;
-    _selectedStatus = ItemStatus.available;
-    _editingItem = null;
+    _floorController.clear();
+    _hasEquipmentController.clear();
+    _roomNumberController.clear();
+    _roomTypeController.clear();
+    _towerController.clear();
+    _editingClassroom = null;
   }
 
-  void _addItem() {
-    // Para las salas, asegurarse de que el formato de ubicación es correcto
-    String? location = _locationController.text.isEmpty ? null : _locationController.text;
-    
-    // Si es una sala, asegurar que tiene formato Torre-Numero (ej: C-101)
-    if (_selectedType == RecordType.room && location != null) {
-      // Verificar si ya tiene el formato correcto (Torre-Numero)
-      if (!location.contains('-')) {
-        // Asumir que es solo un número y agregar torre por defecto
-        location = 'C-$location';
+  void _addOrUpdateClassroom() async {
+    if (_formKey.currentState!.validate()) {
+      final classroom = Classroom(
+        id: _editingClassroom?.id ?? 0,
+        floor: int.tryParse(_floorController.text) ?? 0,
+        hasEquipment: _hasEquipmentController.text,
+        roomNumber: _roomNumberController.text,
+        roomType: _roomTypeController.text,
+        tower: _towerController.text,
+      );
+      if (_editingClassroom == null) {
+        await _service.addClassroom(classroom);
+      } else {
+        await _service.updateClassroom(classroom);
       }
+      _resetForm();
+      await _loadClassrooms();
+      Navigator.pop(context);
     }
-    
-    final newItem = InventoryItem(
-      id: DateTime.now().toString(),
-      name: _nameController.text,
-      type: _selectedType,
-      location: location,
-      description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
-      status: _selectedStatus,
-      lastUpdated: DateTime.now(),
-    );
-
-    print('Añadiendo nuevo item al inventario: ${newItem.name}, tipo: ${newItem.type}, ubicación: ${newItem.location}');
-    widget.onItemAdded(newItem);
-    _resetForm();
-    Navigator.pop(context);
   }
 
-  void _updateItem() {
-    // Para las salas, asegurarse de que el formato de ubicación es correcto
-    String? location = _locationController.text.isEmpty ? null : _locationController.text;
-    
-    // Si es una sala, asegurar que tiene formato Torre-Numero (ej: C-101)
-    if (_selectedType == RecordType.room && location != null) {
-      // Verificar si ya tiene el formato correcto (Torre-Numero)
-      if (!location.contains('-')) {
-        // Asumir que es solo un número y agregar torre por defecto
-        location = 'C-$location';
-      }
-    }
-    
-    final updatedItem = _editingItem!.copyWith(
-      name: _nameController.text,
-      type: _selectedType,
-      location: location,
-      description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
-      status: _selectedStatus,
-      lastUpdated: DateTime.now(),
-    );
-
-    print('Actualizando item del inventario: ${updatedItem.name}, tipo: ${updatedItem.type}, ubicación: ${updatedItem.location}');
-    widget.onItemUpdated(updatedItem);
-    _resetForm();
-    Navigator.pop(context);
-  }
-
-  void _showItemDialog([InventoryItem? item]) {
-    _editingItem = item;
-    
-    if (item != null) {
-      _nameController.text = item.name;
-      _selectedType = item.type;
-      _locationController.text = item.location ?? '';
-      _descriptionController.text = item.description ?? '';
-      _selectedStatus = item.status;
+  void _showClassroomDialog([Classroom? classroom]) {
+    _editingClassroom = classroom;
+    if (classroom != null) {
+      _floorController.text = classroom.floor.toString();
+      _hasEquipmentController.text = classroom.hasEquipment;
+      _roomNumberController.text = classroom.roomNumber;
+      _roomTypeController.text = classroom.roomType;
+      _towerController.text = classroom.tower;
     } else {
       _resetForm();
     }
-
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          item == null ? 'Agregar Item al Inventario' : 'Editar Item del Inventario',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: SingleChildScrollView(
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<RecordType>(
-                  value: _selectedType,
-                  decoration: InputDecoration(
-                    labelText: 'Tipo',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    prefixIcon: const Icon(Icons.category),
+                Text(
+                  classroom == null ? 'Agregar Aula' : 'Editar Aula',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                    color: blue,
                   ),
-                  items: [
-                    DropdownMenuItem(
-                      value: RecordType.equipment,
-                      child: Text('Equipamiento'),
+                ),
+                const SizedBox(height: 18),
+                _buildTextField(_roomNumberController, 'Número de Aula', Icons.meeting_room),
+                const SizedBox(height: 12),
+                _buildTextField(_towerController, 'Torre', Icons.location_city),
+                const SizedBox(height: 12),
+                _buildTextField(_floorController, 'Piso', Icons.layers, isNumber: true),
+                const SizedBox(height: 12),
+                _buildTextField(_roomTypeController, 'Tipo de Aula', Icons.category),
+                const SizedBox(height: 12),
+                _buildTextField(_hasEquipmentController, '¿Tiene equipamiento?', Icons.check_circle),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancelar'),
                     ),
-                    DropdownMenuItem(
-                      value: RecordType.room,
-                      child: Text('Salón'),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: gold,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                      onPressed: _addOrUpdateClassroom,
+                      child: Text(classroom == null ? 'Agregar' : 'Actualizar'),
                     ),
                   ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedType = value;
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    labelText: 'Nombre',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    prefixIcon: const Icon(Icons.label),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor ingrese un nombre';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _locationController,
-                  decoration: InputDecoration(
-                    labelText: _selectedType == RecordType.room ? 'Número de Salón' : 'Ubicación de Almacenamiento',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    prefixIcon: _selectedType == RecordType.room ? const Icon(Icons.room) : const Icon(Icons.storage),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _descriptionController,
-                  decoration: InputDecoration(
-                    labelText: 'Descripción',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    prefixIcon: const Icon(Icons.description),
-                  ),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<ItemStatus>(
-                  value: _selectedStatus,
-                  decoration: InputDecoration(
-                    labelText: 'Estado',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    prefixIcon: const Icon(Icons.sync),
-                  ),
-                  items: [
-                    DropdownMenuItem(
-                      value: ItemStatus.available,
-                      child: Text('Disponible'),
-                    ),
-                    DropdownMenuItem(
-                      value: ItemStatus.inUse,
-                      child: Text('En Uso'),
-                    ),
-                    DropdownMenuItem(
-                      value: ItemStatus.maintenance,
-                      child: Text('En Mantenimiento'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedStatus = value;
-                      });
-                    }
-                  },
                 ),
               ],
             ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (_formKey.currentState!.validate()) {
-                if (item == null) {
-                  _addItem();
-                } else {
-                  _updateItem();
-                }
-              }
-            },
-            child: Text(item == null ? 'Agregar' : 'Actualizar'),
-          ),
-        ],
       ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool isNumber = false}) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: gold),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: lightGrey,
+      ),
+      validator: (value) => value == null || value.isEmpty ? 'Campo requerido' : null,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final equipmentItems = widget.inventoryItems.where((item) => item.type == RecordType.equipment).toList();
-    final roomItems = widget.inventoryItems.where((item) => item.type == RecordType.room).toList();
-
     return Scaffold(
+      backgroundColor: lightGrey,
       appBar: AppBar(
-        title: const Text(
-          'Inventario',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Aulas'),
         centerTitle: true,
         elevation: 2,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white,
-          tabs: [
-            Tab(
-              text: 'Equipamiento',
-              icon: Icon(Icons.videocam, color: Color(0xFFFFD700)),
-            ),
-            Tab(
-              text: 'Salones',
-              icon: Icon(Icons.meeting_room, color: Color(0xFFFFD700)),
-            ),
-          ],
-        ),
+        backgroundColor: blue,
+        foregroundColor: Colors.white,
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          // Equipment Tab
-          _buildInventoryList(equipmentItems),
-          
-          // Rooms Tab
-          _buildInventoryList(roomItems),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Buscar aula... (número, tipo, torre, equipamiento)',
+                prefixIcon: Icon(Icons.search, color: gold),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+            ),
+          ),
+          Expanded(
+            child: _filteredClassrooms.isEmpty
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.meeting_room_outlined, size: 80, color: gold.withOpacity(0.5)),
+                      const SizedBox(height: 16),
+                      Text('No hay aulas registradas', style: TextStyle(color: darkGrey, fontSize: 18)),
+                    ],
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    itemCount: _filteredClassrooms.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final classroom = _filteredClassrooms[index];
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        child: Card(
+                          color: Colors.white,
+                          elevation: 4,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                            leading: CircleAvatar(
+                              radius: 28,
+                              backgroundColor: gold.withOpacity(0.15),
+                              child: Icon(Icons.meeting_room, color: blue, size: 32),
+                            ),
+                            title: Row(
+                              children: [
+                                Text(
+                                  'Aula ${classroom.roomNumber}',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: blue),
+                                ),
+                                const SizedBox(width: 10),
+                                _buildBadge(classroom.hasEquipment),
+                              ],
+                            ),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.location_city, size: 18, color: gold),
+                                      const SizedBox(width: 4),
+                                      Text('Torre: ${classroom.tower}', style: TextStyle(color: darkGrey)),
+                                      const SizedBox(width: 16),
+                                      Icon(Icons.layers, size: 18, color: gold),
+                                      const SizedBox(width: 4),
+                                      Text('Piso: ${classroom.floor}', style: TextStyle(color: darkGrey)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.category, size: 18, color: gold),
+                                      const SizedBox(width: 4),
+                                      Text('Tipo: ${classroom.roomType}', style: TextStyle(color: darkGrey)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: Icon(Icons.edit, color: blue),
+                                  onPressed: () => _showClassroomDialog(classroom),
+                                  tooltip: 'Editar',
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.delete, color: Colors.red.shade400),
+                                  onPressed: () async {
+                                    await _service.deleteClassroom(classroom.id);
+                                    await _loadClassrooms();
+                                  },
+                                  tooltip: 'Eliminar',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showItemDialog(),
-        icon: const Icon(Icons.add),
-        label: const Text('Agregar Item'),
+        onPressed: () => _showClassroomDialog(),
+        icon: Icon(Icons.add, color: Colors.black),
+        backgroundColor: gold,
+        label: const Text('Agregar Aula', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
       ),
     );
   }
 
-  Widget _buildInventoryList(List<InventoryItem> items) {
-    if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              items.isEmpty && _tabController.index == 0 ? Icons.videocam_off : Icons.meeting_room_outlined,
-              size: 80,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No hay ${_tabController.index == 0 ? 'equipos' : 'salones'} registrados',
-              style: TextStyle(
-                fontSize: 20,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Añade ${_tabController.index == 0 ? 'equipos' : 'salones'} usando el botón "+"',
-              style: TextStyle(
-                color: Colors.grey[500],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.only(bottom: 16),
-          child: ListTile(
-            contentPadding: const EdgeInsets.all(16),
-            title: Row(
-              children: [
-                Text(
-                  item.name.startsWith('Sala') ? item.name.replaceFirst('Sala', 'Salón') : item.name,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _buildStatusBadge(item.status),
-              ],
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (item.location != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(
-                        item.type == RecordType.room ? Icons.room : Icons.storage,
-                        size: 16,
-                        color: Colors.orange,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        item.location!,
-                        style: const TextStyle(
-                          color: Colors.orange,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                if (item.description != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    item.description!,
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.update,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Actualizado: ${DateFormat('dd/MM/yyyy HH:mm').format(item.lastUpdated)}',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            leading: Icon(
-              item.type == RecordType.equipment ? Icons.videocam : Icons.meeting_room,
-              color: Colors.blue,
-              size: 36,
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.blue),
-                  onPressed: () => _showItemDialog(item),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => widget.onItemDeleted(item.id),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildStatusBadge(ItemStatus status) {
-    Color backgroundColor;
-    Color textColor;
-    String statusText;
-    
-    switch (status) {
-      case ItemStatus.available:
-        backgroundColor = Colors.green.withOpacity(0.1);
-        textColor = Colors.green;
-        statusText = 'Disponible';
-        break;
-      case ItemStatus.inUse:
-        backgroundColor = Colors.orange.withOpacity(0.1);
-        textColor = Colors.orange;
-        statusText = 'En Uso';
-        break;
-      case ItemStatus.maintenance:
-        backgroundColor = Colors.red.withOpacity(0.1);
-        textColor = Colors.red;
-        statusText = 'En Mantenimiento';
-        break;
-    }
-
+  Widget _buildBadge(String hasEquipment) {
+    final isYes = hasEquipment.toLowerCase().contains('s');
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: backgroundColor,
+        color: isYes ? Colors.green.withOpacity(0.2) : Colors.grey.shade300,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isYes ? Colors.green : Colors.grey.shade400),
       ),
-      child: Text(
-        statusText,
-        style: TextStyle(
-          color: textColor,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
+      child: Row(
+        children: [
+          Icon(isYes ? Icons.check_circle : Icons.cancel, size: 16, color: isYes ? Colors.green : Colors.grey),
+          const SizedBox(width: 4),
+          Text(
+            isYes ? 'Con equipamiento' : 'Sin equipamiento',
+            style: TextStyle(fontSize: 12, color: isYes ? Colors.green : Colors.grey),
+          ),
+        ],
       ),
     );
   }
