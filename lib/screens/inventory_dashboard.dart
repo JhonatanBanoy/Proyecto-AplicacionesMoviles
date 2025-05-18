@@ -185,11 +185,78 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: lightGrey,
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: blue,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.school, color: Colors.white, size: 30),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Educal',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Navegación (Administrador)',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.home),
+              title: const Text('Inicio'),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.meeting_room),
+              title: const Text('Lista de Salones'),
+              selected: true,
+              selectedTileColor: blue.withOpacity(0.1),
+              selectedColor: blue,
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.people),
+              title: const Text('Gestión de Usuarios'),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.history),
+              title: const Text('Historial de Reservas'),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
       appBar: AppBar(
-        title: const Text('Aulas'),
-        centerTitle: true,
-        elevation: 2,
+        title: const Text('Gestión de Aulas'),
         backgroundColor: blue,
         foregroundColor: Colors.white,
       ),
